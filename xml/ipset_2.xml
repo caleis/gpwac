@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<!-- IP Parameter Set Descriptor v0.2 -->
+<!-- Compatible with version 0.2 of ipset.xsd schema and xml2nvp v0.5.xx -->
+<ipparameterset
+xmlns="http://www.zeemanconsult.com"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/ipset.xsd">
+	<globalparams>
+		<psname>IP parameter set #2: demo</psname>
+		<psversion>v0.1</psversion>
+		<!-- date is expected in dd/mm/yyyy format -->
+		<psdate>26/02/2026</psdate>
+	</globalparams>
+	<ipset>
+        <netmask>255.255.255.0</netmask>
+        <defgw>192.168.127.2</defgw>
+        <dnsserver1>1.2.3.4</dnsserver1>
+        <dnsserver2>4.4.4.4</dnsserver2>
+    </ipset>
+</ipparameterset>

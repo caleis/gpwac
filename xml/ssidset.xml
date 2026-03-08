@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<!-- SSID Parameter Set Descriptor v0.1 -->
+<!-- Compatible with version 0.1 of ssidset.xsd schema and script vx.y.z -->
+<ssidparameterset
+xmlns="http://www.zeemanconsult.com"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/ssidset.xsd">
+   <globalparams>
+      <psname>SSID parameter set #1: demo</psname>
+      <psversion>v0.1</psversion>
+	  <!-- date is expected in dd/mm/yyyy format -->
+      <psdate>16/02/2026</psdate>
+   </globalparams>
+   <ssidsets>
+      <ssidset>
+         <ssidstatus>true</ssidstatus>
+         <ssidname>testssid1</ssidname>
+         <rfband>5ghz</rfband>
+         <ssidbroadcast>true</ssidbroadcast>
+         <wpa-passphrase>wpa-passphraseTest1</wpa-passphrase>
+      </ssidset>
+      <ssidset>
+         <ssidstatus>true</ssidstatus>
+         <ssidname>testssid2</ssidname>
+         <rfband>5ghz</rfband>
+         <ssidbroadcast>false</ssidbroadcast>
+         <wpa-passphrase>WpaSecret2</wpa-passphrase>
+      </ssidset>
+      <ssidset>
+         <ssidstatus>true</ssidstatus>
+         <ssidname>testssid3</ssidname>
+         <rfband>2.4ghz</rfband>
+         <ssidbroadcast>true</ssidbroadcast>
+         <wpa-passphrase>wpa-passphraseTest3</wpa-passphrase>
+      </ssidset>
+   </ssidsets>
+</ssidparameterset>

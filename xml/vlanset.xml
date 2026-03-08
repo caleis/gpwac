@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<!-- VLAN Parameter Set Descriptor v0.1 -->
+<!-- Compatible with version 0.1 of vlanset.xsd schema and script vx.y.z -->
+<vlanparameterset
+xmlns="http://www.zeemanconsult.com"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/vlanset.xsd">
+   <globalparams>
+      <psname>VLAN parameter set #1: demo</psname>
+      <psversion>v0.1</psversion>
+	  <!-- date is expected in dd/mm/yyyy format -->
+      <psdate>16/02/2026</psdate>
+   </globalparams>
+   <vlansets>
+      <vlanset>
+         <interface>testssid1</interface>
+         <pvid>209</pvid>
+      </vlanset>
+      <vlanset>
+         <interface>testssid2</interface>
+         <pvid>2009</pvid>
+      </vlanset>
+      <vlanset>
+         <interface>testssid3</interface>
+         <pvid>4094</pvid>
+      </vlanset>
+   </vlansets>
+</vlanparameterset>

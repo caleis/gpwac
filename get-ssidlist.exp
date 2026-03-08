@@ -1,0 +1,118 @@
+#!/usr/bin/expect -f
+
+# The calling script captures stdout for the results, therefore no ssh output is visible
+# Must rely on printerrmsg, i.e. messages sent to stderr
+# Log file is set to record ssh communication
+log_user 0
+#log_file ./get-awkmodel.log
+
+# Activate debug with value 1
+exp_internal 0
+
+set SCRIPTNAME "get-ssidlist.exp"
+set SCRIPT_VERSION "v0.1.01"
+
+set REQUIRED_ARGS 4
+set SSH_TIMEOUT 30
+
+set GET_SSIDLIST_DELAY 5
+
+set RTNEXP_SUCCESS 0
+set RTNEXP_ARGERROR 40
+set RTNEXP_SSHTIMEOUT 41
+
+# Print diagnostic and error messages to stderr
+# $level : diagnostic level, message printed if <= DBG_LEVEL
+# $msg   : message to print
+# $mode  : optional, if "nonl" then no newline is printed
+
+proc printerrmsg {level msg {mode ""}} {
+    global DBG_LEVEL SCRIPTNAME SCRIPT_VERSION CURR_IP_ADDR
+
+    set DATE [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]
+
+    if {$level <= $DBG_LEVEL} {
+        set prefix "@$DATE: \[$SCRIPTNAME | $SCRIPT_VERSION | $CURR_IP_ADDR\] $msg"
+
+        if {$mode eq "nonl"} {
+            puts -nonewline stderr $prefix
+            flush stderr
+        } else {
+            puts stderr $prefix
+        }
+    }
+}
+
+set n_args [llength $argv]
+foreach pair $argv {
+    if {[regexp {^([^=]+)=(.*)$} $pair -> key value]} {
+        set $key $value
+    }
+}
+
+# Check the number of arguments
+if {$n_args != $REQUIRED_ARGS} {
+   printerrmsg 0 "Error: Incorrect number of arguments passed: $n_args (required: $REQUIRED_ARGS"
+   exit $RTNEXP_ARGERROR
+}
+
+printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
+
+# Connect to the AWK-3252A via SSH
+# The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)
+# StrictHostKeyChecking to no the SSH connection will accept any key that's sent by the server
+# UserKnownHostsFile keyword specifies an alternate to $HOME/.ssh/known_hosts
+
+# Need to turn off the logging here, as the ssh connection prints stuff to stdout, which interferes with the return list
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$CURR_IP_ADDR
+
+set timeout $SSH_TIMEOUT
+
+# Check the connection
+expect_before {
+    timeout { printerrmsg 0 "Error: SSH connection timed out";
+	exit $RTNEXP_SSHTIMEOUT}
+}
+
+
+expect {
+   	-re ".*ssword: " { 
+		send "$PASSWD\r"
+	}
+}
+
+expect {
+    -re "Do you want to delete the failure record.*\]" {
+        send "y\r"
+        exp_continue
+    }
+    -re "awk.*# " {
+		send "configure\r"}
+}
+
+expect {
+	"*?(config)# " {
+    	send "wlan ap show ssid\r"
+	}
+}
+
+# Wait for device gathering data
+sleep $GET_SSIDLIST_DELAY
+
+expect {
+    -re {Index\s+Status\s+RF Band\s+SSID.*?\n} {
+        set output $expect_out(buffer)
+    }
+}
+
+set ssid_list {}
+
+foreach line [split $output "\n"] {
+    if {[regexp {^\s*\d+\s+\w+\s+\S+\s+(\S+)} $line -> ssid]} {
+        lappend ssid_list $ssid
+    }
+}
+puts "$ssid_list"
+
+exit $RTNEXP_SUCCESS
