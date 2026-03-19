@@ -14,14 +14,14 @@
 # Script name and version parameters
 
 declare SCRIPTNAME=`basename "$0"`
-declare SCRIPT_VERSION="v0.1.00"
+declare SCRIPT_VERSION="v0.1.01"
 
 # Include common functions and parameters
 
-source ./gpwac-common-params.sh
+source "$HOME/gpwac/aux-scripts/gpwac-common-params.sh"
 
 # Local script variables
-declare EXP_GETMODEL_SCRIPT_PATH="./get-awkmodel.exp"
+declare EXP_GETMODEL_SCRIPT_PATH="$HOME/gpwac/aux-scripts/get-awkmodel.exp"
 
 # Getting command line parameters
 declare -i NO_ARGS=0

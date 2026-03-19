@@ -5,7 +5,7 @@ xmlns="http://www.zeemanconsult.com"
 elementFormDefault="qualified">
 <xs:element name="ssidparameterset">
    <xs:annotation>
-      <xs:documentation>SSID Parameter Set Description v0.1 - Schema Version 0.1, compatible with script vx.y.z</xs:documentation>
+      <xs:documentation>SSID Parameter Set Description v0.2 - Schema Version 0.2, compatible with script vx.y.z</xs:documentation>
    </xs:annotation>
    <xs:complexType>
       <xs:sequence>
@@ -43,9 +43,18 @@ elementFormDefault="qualified">
 								</xs:simpleType>
 							</xs:element>
 							<xs:element name="ssidbroadcast" type="xs:boolean"/>
+							<xs:element name="wpa-encryption">
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="aes"/>
+										<xs:enumeration value="tkip-aes-mixed"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:element>
 							<xs:element name="wpa-passphrase"><xs:simpleType>
 								<xs:restriction base="xs:string"><xs:minLength value="8"/><xs:maxLength value="63"/></xs:restriction></xs:simpleType></xs:element>
-                        </xs:sequence>
+							<xs:element name="pvid"><xs:simpleType>
+								<xs:restriction base="xs:unsignedInt"><xs:minInclusive value="1"/><xs:maxInclusive value="4094"/></xs:restriction></xs:simpleType></xs:element>                         </xs:sequence>
                      </xs:complexType>
                   </xs:element>
                </xs:sequence>

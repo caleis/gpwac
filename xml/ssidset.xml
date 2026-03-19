@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <!-- SSID Parameter Set Descriptor v0.1 -->
-<!-- Compatible with version 0.1 of ssidset.xsd schema and script vx.y.z -->
+<!-- Compatible with version 0.2 of ssidset.xsd schema and script vx.y.z -->
 <ssidparameterset
 xmlns="http://www.zeemanconsult.com"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -17,21 +17,27 @@ xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/ssidset.xs
          <ssidname>testssid1</ssidname>
          <rfband>5ghz</rfband>
          <ssidbroadcast>true</ssidbroadcast>
+		 <wpa-encryption>aes</wpa-encryption>
          <wpa-passphrase>wpa-passphraseTest1</wpa-passphrase>
+		 <pvid>124</pvid>
       </ssidset>
       <ssidset>
          <ssidstatus>true</ssidstatus>
          <ssidname>testssid2</ssidname>
          <rfband>5ghz</rfband>
-         <ssidbroadcast>false</ssidbroadcast>
+         <ssidbroadcast>true</ssidbroadcast>
+		 <wpa-encryption>aes</wpa-encryption>
          <wpa-passphrase>WpaSecret2</wpa-passphrase>
+		 <pvid>124</pvid>
       </ssidset>
       <ssidset>
          <ssidstatus>true</ssidstatus>
          <ssidname>testssid3</ssidname>
          <rfband>2.4ghz</rfband>
-         <ssidbroadcast>true</ssidbroadcast>
+         <ssidbroadcast>false</ssidbroadcast>
+		 <wpa-encryption>tkip-aes-mixed</wpa-encryption>
          <wpa-passphrase>wpa-passphraseTest3</wpa-passphrase>
+		 <pvid>124</pvid>
       </ssidset>
    </ssidsets>
 </ssidparameterset>

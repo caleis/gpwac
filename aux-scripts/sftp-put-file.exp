@@ -1,12 +1,14 @@
 #!/usr/bin/expect -f
 
-# SSH output logging is muted, can be turned if needed
-# Log file can be set to record ssh communication
+# Log file can set to record ssh communication
 log_user 0
-#log_file ./configure-ip-params.log
+#log_file ./sftp-put-file.log
 
 # Activate debug with value 1
 exp_internal 0
+
+set SCRIPTNAME "sftp-put-file.exp"
+set SCRIPT_VERSION "v0.1.02"
 
 set REQUIRED_ARGS 9
 set SSH_TIMEOUT 60
@@ -19,6 +21,27 @@ set RTNEXP_CFGFILE_ERROR 43
 
 set RTNEXP_WARN_CFGFILE_UNCHANGED 60
 
+# Print diagnostic and error messages to stderr
+# $level : diagnostic level, message printed if <= DBG_LEVEL
+# $msg   : message to print
+# $mode  : optional, if "nonl" then no newline is printed
+
+proc printerrmsg {level msg {mode ""}} {
+    global DBG_LEVEL SCRIPTNAME SCRIPT_VERSION CURR_IP_ADDR
+
+    set DATE [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]
+
+    if {$level <= $DBG_LEVEL} {
+        set prefix "@$DATE: \[$SCRIPTNAME | $SCRIPT_VERSION | $CURR_IP_ADDR\] $msg"
+
+        if {$mode eq "nonl"} {
+            puts -nonewline stderr $prefix
+            flush stderr
+        } else {
+            puts stderr $prefix
+        }
+    }
+}
 
 set n_args [llength $argv]
 foreach pair $argv {
@@ -29,15 +52,13 @@ foreach pair $argv {
 
 # Check the number of arguments
 if {$n_args != $REQUIRED_ARGS} {
-   puts "Incorrect number of arguments passed: $n_args (required: $REQUIRED_ARGS"
+   printerrmsg 0 "Incorrect number of arguments passed: $n_args (required: $REQUIRED_ARGS"
    exit $RTNEXP_ARGERROR
 }
 
-if {$DBG_LEVEL >= 1} {
-	puts "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
-	puts "GPWAC_IP_ADDR='$GPWAC_IP_ADDR' SFTP_USER='$SFTP_USER' SFTP_PASSWD=<pwd of [string length $SFTP_PASSWD] chars>"
-	puts "SFTP_FILE=$SFTP_FILE ENC_PASSWD=$ENC_PASSWD"
-}
+	printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
+	printerrmsg 1 "GPWAC_IP_ADDR='$GPWAC_IP_ADDR' SFTP_USER='$SFTP_USER' SFTP_PASSWD=<pwd of [string length $SFTP_PASSWD] chars>"
+	printerrmsg 1 "SFTP_FILE=$SFTP_FILE ENC_PASSWD=$ENC_PASSWD"
 
 # Connect to the AWK-3252A via SSH
 # The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)
@@ -50,7 +71,7 @@ set timeout $SSH_TIMEOUT
 
 # Check the connection
 expect_before {
-    timeout { puts "Connection timeout! - Phase 1";
+    timeout { printerrmsg 0 "Error: SSH connection timed out"
 	exit $RTNEXP_SSHTIMEOUT}
 }
 
@@ -59,7 +80,7 @@ expect {
 	"*?ssword: " { 
 		send "$PASSWD\r"
 	}
-	puts "Error: Unexpected response when waiting for password prompt"
+	printerrmsg 0 "Error: Unexpected response when waiting for password prompt"
 	exit $RTNEXP_UNEXPECTED_RESP
 }
 
@@ -79,7 +100,7 @@ expect {
         send "$ENC_PASSWD\r"
     }
     -re "Error:*" {
-		puts "Error: Unexpected response for copy command"
+		printerrmsg 0 "Error: Unexpected response for copy command"
 		exit $RTNEXP_UNEXPECTED_RESP
 	}
 }
@@ -88,26 +109,26 @@ sleep 2
 
 expect {
     "Backup successfully." {
-		puts "Backup was successful - AWK is reloading new configuration..\r"
+		printerrmsg 1 "Backup was successful - AWK is reloading new configuration..\r"
     }
 	-re "% Error: Failed to decrypt the configuration file\.*" {
-		puts "Error: Configuration file cannot be found or corrupted"
+		printerrmsg 0 "Error: Configuration file cannot be found or corrupted"
 		exit $RTNEXP_CFGFILE_ERROR
 	}
 	-re "% Error: The file could not be found on the server\." {
-		puts "Error: Configuration file cannot be found or corrupted"
+		printerrmsg 0 "Error: Configuration file cannot be found or corrupted"
 		exit $RTNEXP_CFGFILE_ERROR
 	}
 	-re "Error:*" {
-		puts "Error: Unexpected response for sftp copy command (error received)"
+		printerrmsg 0 "Error: Unexpected response for sftp copy command (error received)"
 		exit $RTNEXP_UNEXPECTED_RESP
 	}
 	-re "% Warning: Unable to restore this configuration because it is identical to the current startup configuration\." {
-		puts "Restore not completed as configuration is identical to the one in the device. (Warning only)"
-		exit RTNEXP_WARN_CFGFILE_UNCHANGED
+		printerrmsg 0 "Restore not completed as configuration is identical to the one in the device. (Warning only)"
+		exit $RTNEXP_WARN_CFGFILE_UNCHANGED
 	}
     -re "awk.*# " {
-		puts "Error: Unexpected response for sftp copy command (nothing received)"
+		printerrmsg 0 "Error: Unexpected response for sftp copy command (nothing received)"
 		exit $RTNEXP_UNEXPECTED_RESP
 	}
 }
@@ -124,6 +145,5 @@ expect {
 	}
 }
 
-puts "\n"
 exit $RTNEXP_SUCCESS
 

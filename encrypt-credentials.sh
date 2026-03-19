@@ -14,16 +14,16 @@
 # Script name and version parameters
 #
 declare SCRIPTNAME=`basename "$0"`
-declare SCRIPT_VERSION="v0.3.00"
+declare SCRIPT_VERSION="v0.3.01"
 #
 # Include common functions and parameters
 #
-source ./gpwac-common-params.sh
+source "$HOME/gpwac/aux-scripts/gpwac-common-params.sh"
 #
 # Local script variables
 #
-declare CRED_PATH=~/.gpwac/devices-cred.age
-declare KEY_PATH=~/.gpwac/gpwac.age 
+declare CRED_PATH="$HOME/.gpwac/devices-cred.age"
+declare KEY_PATH="$HOME/.gpwac/gpwac.age"
 #
 # Getting command line parameters
 #

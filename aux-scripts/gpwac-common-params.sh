@@ -9,12 +9,12 @@
 declare COMMONPARAMS_VERSION="v0.1.03"
 #
 # Supported models (as identified by the device, in space separated list)
-declare SUPPORTED_MODELS="AWK-3252A-UN  AWK-3252A-UN"
+declare SUPPORTED_MODELS="AWK-3252A-UN  AWK-4252A-UN"
 
 # GP-WAC components file locations
-declare XML2NVP_PATH="./xml2nvp"
-declare AGEKEY_PATH=~/.gpwac/gpwac.age
-declare CFG_DIR="~/gpwac/default-configs/masterconfig"
+declare XML2NVP_PATH="$HOME/gpwac/aux-scripts/xml2nvp"
+declare AGEKEY_PATH="$HOME/.gpwac/gpwac.age"
+declare CFG_DIR="$HOME/gpwac/default-configs/masterconfig"
 declare RESULT_CFG_DIR="$HOME/gpwac/generated-configs"
 declare SFTP_WORK_DIR="/home/sftpuser/cfgfiles"
 

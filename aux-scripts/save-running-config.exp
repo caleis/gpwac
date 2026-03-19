@@ -1,20 +1,43 @@
 #!/usr/bin/expect -f
 
-# SSH output logging is muted, can be turned if needed
-# Log file can be set to record ssh communication
+# Log file can set to record ssh communication
 log_user 0
-#log_file ./configure-ip-params.log
+#log_file ./save-running-config.log
 
 # Activate debug with value 1
 exp_internal 0
 
-set REQUIRED_ARGS 9
+set SCRIPTNAME "save-running-config.exp"
+set SCRIPT_VERSION "v0.1.01"
+
+set REQUIRED_ARGS 4
 set SSH_TIMEOUT 30
 
 set RTNEXP_SUCCESS 0
 set RTNEXP_ARGERROR 40
 set RTNEXP_SSHTIMEOUT 41
 
+# Print diagnostic and error messages to stderr
+# $level : diagnostic level, message printed if <= DBG_LEVEL
+# $msg   : message to print
+# $mode  : optional, if "nonl" then no newline is printed
+
+proc printerrmsg {level msg {mode ""}} {
+    global DBG_LEVEL SCRIPTNAME SCRIPT_VERSION CURR_IP_ADDR
+
+    set DATE [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]
+
+    if {$level <= $DBG_LEVEL} {
+        set prefix "@$DATE: \[$SCRIPTNAME | $SCRIPT_VERSION | $CURR_IP_ADDR\] $msg"
+
+        if {$mode eq "nonl"} {
+            puts -nonewline stderr $prefix
+            flush stderr
+        } else {
+            puts stderr $prefix
+        }
+    }
+}
 
 set n_args [llength $argv]
 foreach pair $argv {
@@ -25,14 +48,11 @@ foreach pair $argv {
 
 # Check the number of arguments
 if {$n_args != $REQUIRED_ARGS} {
-   puts "Incorrect number of arguments passed: $n_args (required: $REQUIRED_ARGS"
+   printerrmsg 0 "Incorrect number of arguments passed: $n_args (required: $REQUIRED_ARGS"
    exit $RTNEXP_ARGERROR
 }
 
-if {$DBG_LEVEL >= 1} {
-	puts "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
-	puts "NEW_IP_ADDR='$NEW_IP_ADDR' NETMASK='$NETMASK' DEFGW='$DEFGW' DNSSERVER1='$DNSSERVER1' DNSSERVER2='$DNSSERVER2'"
-}
+	printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
 
 # Connect to the AWK-3252A via SSH
 # The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)
@@ -45,7 +65,7 @@ set timeout $SSH_TIMEOUT
 
 # Check the connection
 expect_before {
-    timeout { puts "Connection timeout! - Phase 1";
+    timeout { printerrmsg 0 "Error: SSH connection timed out"
 	exit $RTNEXP_SSHTIMEOUT}
 }
 
@@ -62,32 +82,10 @@ expect {
         exp_continue
     }
     -re "awk.*# " {
-		send "configure\r"}
+		send "copy running-cfg startup-cfg\r"}
 }
 
-if {$DNSSERVER1 ne ""} {
-	expect "*?(config)# " {
-		send "ip management lan name-server 1 $DNSSERVER1\r"
-	}
-}
-
-if {$DNSSERVER2 ne ""} {
-	expect "*?(config)# " {
-		send "ip management lan name-server 2 $DNSSERVER2\r"
-	}
-}
-
-expect {
-	"*?(config)# " {
-		send "ip management lan address $NEW_IP_ADDR $NETMASK $DEFGW\r"
-	}
-}
-
-expect {
-	"*?(config)# " {
-		send "exit\r"
-	}
-}
+sleep 1
 
 expect {
 	-re "awk.*# " {
@@ -101,6 +99,5 @@ expect {
 	}
 }
 
-puts "\n"
 exit $RTNEXP_SUCCESS
 
