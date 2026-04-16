@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<!-- Execution Control List Descriptor v0.1 -->
+<!-- Execution Control List Descriptor v0.2 -->
 <!-- Compatible with version 0.1 of ssidset.xsd schema and script vx.y.z -->
 <execcontroldata
 xmlns="http://www.zeemanconsult.com"
@@ -9,7 +9,7 @@ xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/execlist.x
       <psname>Execution Control Data demo</psname>
       <psversion>v0.1</psversion>
 	  <!-- date is expected in dd/mm/yyyy format -->
-      <psdate>12/03/2026</psdate>
+      <psdate>16/04/2026</psdate>
    </globalparams>
    <commonparams>
       <credentials-dirpath>$HOME/.gpwac</credentials-dirpath>
@@ -22,6 +22,7 @@ xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/execlist.x
    <execlist>
       <execrecord>
          <active>true</active>
+	     <start-with-default-config>true</start-with-default-config>
          <credentials-file>southdeep-cred.age</credentials-file>
          <config-dir>awk-3252a_gfsd_base</config-dir>
          <initial-ip-address>192.168.127.253</initial-ip-address>
@@ -31,6 +32,7 @@ xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/execlist.x
       </execrecord>
       <execrecord>
          <active>true</active>
+	     <start-with-default-config>false</start-with-default-config>
          <credentials-file>southdeep-cred.age</credentials-file>
          <config-dir>awk-3252a_gfsd_base</config-dir>
          <initial-ip-address>192.168.127.200</initial-ip-address>

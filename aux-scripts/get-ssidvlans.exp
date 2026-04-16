@@ -9,13 +9,13 @@ log_user 0
 # Activate debug with value 1
 exp_internal 0
 
-set SCRIPTNAME "get-ssidlist.exp"
-set SCRIPT_VERSION "v0.1.02"
+set SCRIPTNAME "get-ssidvlans.exp"
+set SCRIPT_VERSION "v0.1.00"
 
 set REQUIRED_ARGS 4
 set SSH_TIMEOUT 30
 
-set GET_SSIDLIST_DELAY 5
+set GET_SSIDVLANS_DELAY 5
 
 set RTNEXP_SUCCESS 0
 set RTNEXP_ARGERROR 40
@@ -88,31 +88,25 @@ expect {
         exp_continue
     }
     -re "awk.*# " {
-		send "configure\r"}
-}
-
-expect {
-	"*?(config)# " {
-    	send "wlan ap show ssid\r"
-	}
+		send "show vlan\r"}
 }
 
 # Wait for device gathering data
-sleep $GET_SSIDLIST_DELAY
+sleep $GET_SSIDVLANS_DELAY
 
 expect {
-    -re {Index\s+Status\s+RF Band\s+SSID.*?\n} {
+    -re {Interface\s+VLAN mode\s+PVID.*?\n} {
         set output $expect_out(buffer)
     }
 }
 
-set ssid_list ""
-
-foreach line [split $output "\n"] {
-    if {[regexp {^\s*\d+\s+\w+\s+(\S+)\s+(\S+)} $line -> rfband ssid]} {
-        set ssid_list "$ssid_list$rfband/$ssid\n"
-    }
-}
-puts "$ssid_list"
+#set ssid_list ""
+#
+#foreach line [split $output "\n"] {
+#    if {[regexp {^\s*\d+\s+\w+\s+(\S+)\s+(\S+)} $line -> rfband ssid]} {
+#        set ssid_list "$ssid_list$rfband/$ssid\n"
+#    }
+#}
+puts "$output"
 
 exit $RTNEXP_SUCCESS

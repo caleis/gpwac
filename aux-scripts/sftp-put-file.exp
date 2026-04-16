@@ -8,7 +8,7 @@ log_user 0
 exp_internal 0
 
 set SCRIPTNAME "sftp-put-file.exp"
-set SCRIPT_VERSION "v0.1.02"
+set SCRIPT_VERSION "v0.1.03"
 
 set REQUIRED_ARGS 9
 set SSH_TIMEOUT 60
@@ -59,6 +59,11 @@ if {$n_args != $REQUIRED_ARGS} {
 	printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
 	printerrmsg 1 "GPWAC_IP_ADDR='$GPWAC_IP_ADDR' SFTP_USER='$SFTP_USER' SFTP_PASSWD=<pwd of [string length $SFTP_PASSWD] chars>"
 	printerrmsg 1 "SFTP_FILE=$SFTP_FILE ENC_PASSWD=$ENC_PASSWD"
+
+# set logging if debug level is 2
+if {$DBG_LEVEL == 2} {
+	log_user 1
+}
 
 # Connect to the AWK-3252A via SSH
 # The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)

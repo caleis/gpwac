@@ -45,7 +45,7 @@ elementFormDefault="qualified">
 <!-- Definition of main data structure -->
 <xs:element name="execcontroldata">
    <xs:annotation>
-      <xs:documentation>Execution Control List Description v0.1 - Schema Version 0.1.01, compatible with script vx.y.z</xs:documentation>
+      <xs:documentation>Execution Control List Description v0.2 - Schema Version 0.2.00, compatible with script vx.y.z</xs:documentation>
    </xs:annotation>
    <xs:complexType>
       <xs:sequence>
@@ -86,6 +86,7 @@ elementFormDefault="qualified">
                      <xs:complexType>
                         <xs:sequence>
                           <xs:element name="active" type="xs:boolean"/>
+						  <xs:element name="start-with-default-config" type="xs:boolean"/>
 						  <xs:element name="credentials-file"><xs:simpleType>
 							 <xs:restriction base="xs:string"><xs:minLength value="1"/><xs:maxLength value="40"/></xs:restriction></xs:simpleType></xs:element>
 						  <xs:element name="config-dir"><xs:simpleType>

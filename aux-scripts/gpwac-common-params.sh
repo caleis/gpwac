@@ -6,7 +6,7 @@
 # Version history
 # 0.1: initial version
 #
-declare COMMONPARAMS_VERSION="v0.1.03"
+declare COMMONPARAMS_VERSION="v0.1.05"
 #
 # Supported models (as identified by the device, in space separated list)
 declare SUPPORTED_MODELS="AWK-3252A-UN  AWK-4252A-UN"
@@ -32,6 +32,9 @@ declare -i RTN_SAVE_FAILED=25
 declare -i RTN_TEMPDIR_ERROR=26
 declare -i RTN_CFG_PROC_ERROR=27
 declare -i RTN_NO_OWN_SERVER_ADDR=28
+declare -i RTN_SSID_DELETE_FAILED=29
+declare -i RTN_SSID_CREATE_MOD_FAILED=30
+declare -i RTN_SSID_MOD_VLANS_FAILED=31
 
 # Print diagnostic and error messages to stderr
 # $1: diagnostic level. Message printed if parameter <= set debug level

@@ -8,7 +8,7 @@ log_user 0
 exp_internal 0
 
 set SCRIPTNAME "save-running-config.exp"
-set SCRIPT_VERSION "v0.1.01"
+set SCRIPT_VERSION "v0.1.02"
 
 set REQUIRED_ARGS 4
 set SSH_TIMEOUT 30
@@ -52,7 +52,12 @@ if {$n_args != $REQUIRED_ARGS} {
    exit $RTNEXP_ARGERROR
 }
 
-	printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
+printerrmsg 1 "DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>"
+
+# set logging if debug level is 2
+if {$DBG_LEVEL == 2} {
+	log_user 1
+}
 
 # Connect to the AWK-3252A via SSH
 # The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)

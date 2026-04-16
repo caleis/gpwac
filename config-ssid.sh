@@ -15,7 +15,7 @@
 # Script name and version parameters
 
 declare SCRIPTNAME=`basename "$0"`
-declare SCRIPT_VERSION="v0.2.00"
+declare SCRIPT_VERSION="v0.3.00"
 
 # Include common functions and parameters
 
@@ -23,10 +23,12 @@ source "$HOME/gpwac/aux-scripts/gpwac-common-params.sh"
 
 # Local script variables
 declare EXP_SSIDLIST_SCRIPT_PATH="$HOME/gpwac/aux-scripts/get-ssidlist.exp"
-declare EXP_CREATESSID_SCRIPT_PATH="$HOME/gpwac/aux-scripts/create-ssid.exp"
-declare EXP_MODSSID_SCRIPT_PATH="$HOME/gpwac/aux-scripts/modify-ssid.exp"
+declare EXP_CREATEMODSSID_SCRIPT_PATH="$HOME/gpwac/aux-scripts/createmod-ssid.exp"
 declare EXP_DELETESSID_SCRIPT_PATH="$HOME/gpwac/aux-scripts/delete-ssid.exp"
+declare EXP_GETSSIDVLANS_SCRIPT_PATH="$HOME/gpwac/aux-scripts/get-ssidvlans.exp"
+declare EXP_MODSSIDVLANS_SCRIPT_PATH="$HOME/gpwac/aux-scripts/mod-ssidvlans.exp"
 declare RECONNECT_DELAY=15
+declare REINIT_DELAY=10
 
 # Getting command line parameters
 declare -i NO_ARGS=0
@@ -151,9 +153,12 @@ else
 	printerrmsg 1 "Expect script successfully completed (return value: $RETURN_VAL)"
 fi
 
-printerrmsg 0 "Existing SSIDs: $CURR_SSIDLIST"
+printerrmsg 2 "Existing SSIDs as returned from expect script: $CURR_SSIDLIST"
 
 # Identify the SSIDs to be deleted, modified or created based on current and target SSID lists
+
+# Extract CURR_SSIDS from CURR_SSIDLIST and build an array
+mapfile -t CURR_SSIDS <<< $CURR_SSIDLIST
 
 # Extract SSIDNAME values from TARGET_SSIDLIST into an array of TARGET_SSIDs
 mapfile -t TARGET_SSIDS < <(
@@ -167,15 +172,14 @@ mapfile -t TARGET_SSIDS < <(
                 if ($i ~ /^RFBAND=/)   band = substr($i, 8)
             }
             if (ssid != "" && band != "")
-                print ssid " " band
+                print band "/" ssid
         }
     '
 )
 
-# Extract CURR_SSIDS from CURR_SSIDLIST and build an array
-mapfile -t CURR_SSIDS < <(
-    grep -o '{[^}]*}' <<< "$CURR_SSIDLIST" | tr -d '{}'
-)
+IFS=' '; printerrmsg 0 "Existing SSIDs: ${CURR_SSIDS[*]}"
+IFS=' '; printerrmsg 0 "Target SSIDs: ${TARGET_SSIDS[*]}"
+
 
 # Build lookup tables
 declare -A TARGET_MAP
@@ -189,11 +193,17 @@ if [ ${#CURR_SSIDS[@]} -eq 0 ]
 then
 	printerrmsg 1 "No SSIDs defined in the device (no delete/modify)"
 else
-	for s in "${CURR_SSIDLIST[@]}"; do
-		printerrmsg 0 "SSID: $s"
+	for s in "${CURR_SSIDS[@]}"; do
+		printerrmsg 2 "SSID: $s added to existing SSID list"
 		CURR_MAP["$s"]=1
 	done
 fi
+
+# Print map for serious debug
+printerrmsg 2 "Printing existing SSID map array:"
+for i in "${!CURR_MAP[@]}"; do
+    printerrmsg 2 "[$i] = ${CURR_MAP[$i]}"
+done
 
 # Start building expect argument array for SSIDs to be deleted
 EXPECT_ARGS=( "DBG_LEVEL=$DBG_LEVEL" 
@@ -209,121 +219,191 @@ for CURR_SSID in "${CURR_SSIDS[@]}"; do
         printerrmsg 1 "SSID '$CURR_SSID' exists as target SSID - kept for modification"
     else
         printerrmsg 0 "SSID '$CURR_SSID' not on target SSID list and will be deleted"
-		EXPECT_ARGS+=("SSID($i)=$CURR_SSID")
+		# re-format SSID from rfband/ssidname to 'ssidname rfband'
+		IFS='/' read -r RFBAND SSIDNAME <<< "$CURR_SSID"
+		EXPECT_ARGS+=("SSID($i)=$SSIDNAME $RFBAND")
 		i+=1
     fi
 done
 
-# Delete SSIDs which are not on the target list (if any)
-if [ ${#CURR_SSIDS[@]} -ne 0 ]
-then
+# Check if any SSIDs identified for deletion and delete
+if (( i > 0 )); then
 	printerrmsg 1 "Script $EXP_DELETESSID_SCRIPT_PATH called.."
-	IFS ', '; printerrmsg 2 "Expect arguments: '${EXPECT_ARGS[*]}'"
+	IFS=', '; printerrmsg 2 "Expect arguments: '${EXPECT_ARGS[*]}'"
 
 	# Calling the Delete SSID expect script
 	expect $EXP_DELETESSID_SCRIPT_PATH "${EXPECT_ARGS[@]}"
 	RETURN_VAL=$?
-	if [ $RETURN_VAL -ne 0 ]
-	then
+	if [ $RETURN_VAL -ne 0 ]; then
 		printerrmsg 0 "Error: Expect $EXP_DELETESSID_SCRIPT_PATH script returned an error: $RETURN_VAL), exiting..."
-		exit $RTN_CONFIG_FAILED
+		exit $RTN_SSID_DELETE_FAILED
 	else
 		printerrmsg 1 "Expect script successfully completed (return value: $RETURN_VAL)"
 	fi
 fi
 
 printerrmsg 1 "Checking items of target SSID list"
+
+# Start building expect argument array for SSIDs to be modified
+EXPECT_ARGS=( "DBG_LEVEL=$DBG_LEVEL" 
+			  "USER=$USER" 
+			  "CURR_IP_ADDR=$CURR_IP_ADDR" 
+			  "PASSWD=$PASSWD"
+			)
+
+# CREATE variable will tell expect script if SSID needs to be created (1) or modified (0)
+declare -i CREATE=0
+
+# Attach the target list variable to fd 3
+exec 3<<< "$TARGET_SSIDLIST"
+
+# Cycle through the target list to build argument array for expect script
+printerrmsg 1 "Checking target SSIDs for modification or creation"
 for TARGET_SSID in "${TARGET_SSIDS[@]}"; do
+	printerrmsg 2 "Target SSID: $TARGET_SSID, map of existing SSIDs for that target: ${CURR_MAP[$TARGET_SSID]}"
     if [[ -n "${CURR_MAP[$TARGET_SSID]}" ]]; then
         printerrmsg 0 "SSID '$TARGET_SSID' exists in the device and will be modified"
+		CREATE=0
     else
         printerrmsg 0 "SSID '$TARGET_SSID' does not exist in the device and will be created"
+		CREATE=1
     fi
+	
+	# read next line from argument list and append to expect argument list
+	read -r LINE <&3
+	EXPECT_ARGS+=("CREATE=$CREATE $LINE")
 done
 
-# Start building expect argument array for SSIDs to be created/modified
+# Close fd
+exec 3<&-
+
+# Call create SSID script
+printerrmsg 1 "Scripts $EXP_CREATEMODSSID_SCRIPT_PATH started..."
+IFS=','; printerrmsg 2 "Arguments: ${EXPECT_ARGS[*]}\n" "nonl"
+
+expect $EXP_CREATEMODSSID_SCRIPT_PATH "${EXPECT_ARGS[@]}"
+RETURN_VAL=$?
+if [ $RETURN_VAL -ne 0 ]
+then
+	printerrmsg 0 "Error: Expect $EXP_CREATEMODSSID_SCRIPT_PATH script returned an error: $RETURN_VAL), exiting..."
+	exit $RTN_SSID_CREATE_MOD_FAILED
+else
+	printerrmsg 1 "Expect script $EXP_CREATEMODSSID_SCRIPT_PATH successfully completed (return value: $RETURN_VAL)"
+fi
+
+printerrmsg 1 "Waiting to re-initialise"
+sleep $REINIT_DELAY
+
+# List SSIDs as operation completed
 EXPECT_ARGS=( "DBG_LEVEL=$DBG_LEVEL" 
               "USER=$USER" 
 			  "CURR_IP_ADDR=$CURR_IP_ADDR" 
 			  "PASSWD=$PASSWD"
             )
-# Each line on the TARGET_SSIDLIST will go to a different array element
-while IFS= read -r line; do
-    EXPECT_ARGS+=("$line")
-done <<< "$TARGET_SSIDLIST"
-
-# Call create SSID script
-printerrmsg 1 "Scripts $EXP_CREATESSID_SCRIPT_PATH started..."
+printerrmsg 1 "Script $EXP_GETSSIDVLANS_SCRIPT_PATH called.."
 IFS=','; printerrmsg 2 "Arguments: ${EXPECT_ARGS[*]}\n" "nonl"
 
-expect $EXP_CREATESSID_SCRIPT_PATH "${EXPECT_ARGS[@]}"
+SSIDVLANS_RAW=$(expect $EXP_GETSSIDVLANS_SCRIPT_PATH "${EXPECT_ARGS[@]}")
 RETURN_VAL=$?
 if [ $RETURN_VAL -ne 0 ]
 then
-	printerrmsg 0 "Error: Expect $EEXP_CREATESSID_SCRIPT_PATH script returned an error: $RETURN_VAL), exiting..."
-	exit $RTN_CONFIG_FAILED
+	printerrmsg 0 "Error: Expect $EXP_GETSSIDVLANS_SCRIPT_PATH script returned an error: $RETURN_VAL), exiting..."
+	exit $RTN_SSID_MOD_VLANS_FAILED
 else
 	printerrmsg 1 "Expect script successfully completed (return value: $RETURN_VAL)"
 fi
-exit 0
 
+printerrmsg 2 "Raw message\n%s\n" $SSIDVLANS_RAW
+#printf '%s\n' "$SSIDVLANS_RAW" | tr -d '\r' | awk '{ print "[" NR "] " $0 }'
 
+# Process VLANs list
+mapfile -t SSIDVLANS < <(
+    printf '%s\n' "$SSIDVLANS_RAW" |
+    tr -d '\r' |
+    awk '
+    /^SSID-[0-9.]+[[:space:]]+GHz:/ {
+        mode = $(NF-1)
+        pvid = $NF
+        line = $0
 
-#
-# Process NPV output, get each value to its own variable and construct expect argument array - this is done one line at a time
-#
-EXPECT_ARGS=( 
-	"DBG_LEVEL=$DBG_LEVEL"
-	"USER=$USER"
-	"CURR_IP_ADDR=$CURR_IP_ADDR"
-	"PASSWD=$PASSWD"
-	$TARGET_SSIDLIST
+        sub(/^SSID-/, "", line)
+        sub(/[[:space:]]+(access|hybrid|trunk)[[:space:]]+[0-9]+[[:space:]]*$/, "", line)
+
+        split(line, a, "GHz: ")
+        band = a[1]
+        ssid = a[2]
+
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", band)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", ssid)
+
+        print "SSIDNAME=" ssid " RFBAND=" band "ghz VLANMODE=" mode " CURR_PVID=" pvid
+    }'
 )
-#
-# Call expect script with the necessary argument list
-#
-printerrmsg 1 "Script $EXP_CONF_SCRIPT_PATH called.."
-#echo "${EXPECT_ARGS[@]}"
-$EXP_CONF_SCRIPT_PATH "${EXPECT_ARGS[@]}"
+# Print map for serious debug
+printerrmsg 2 "Processed SSID VLAN list:"
+for i in "${!SSIDVLANS[@]}"; do
+    printerrmsg 2 "[$i] = ${SSIDVLANS[$i]}"
+done
+
+# Now extract the target PVID list (it will be in the same order as target SSID list)
+mapfile -t TARGET_PVIDS < <(
+    echo "$TARGET_SSIDLIST" |
+    awk '
+        {
+            pvid = ""
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^PVID=/) pvid = substr($i, 6)
+            }
+            if (pvid != "")
+                print pvid
+        }
+    '
+)
+
+# Print the target SSID/PVID list (content should be the same as the current SSID list, but order can be different)
+printerrmsg 2 "Target SSID VLAN list:"
+for i in "${!TARGET_SSIDS[@]}"; do
+    printerrmsg 2 "[$i] = ${TARGET_SSIDS[$i]} --> ${TARGET_PVIDS[$i]}"
+done
+
+# Start building expect argument array for SSID VLAN modifications
+EXPECT_ARGS=( "DBG_LEVEL=$DBG_LEVEL" 
+			  "USER=$USER" 
+			  "CURR_IP_ADDR=$CURR_IP_ADDR" 
+			  "PASSWD=$PASSWD"
+			)
+
+printerrmsg 1 "SSID to VLAN assignments"
+
+for i in "${!TARGET_SSIDS[@]}"; do
+	for j in "${!SSIDVLANS[@]}"; do
+		# Process current SSID parameters into variables
+		IFS=' '
+		for pair in ${SSIDVLANS[$j]}; do
+			key=${pair%%=*}
+			value=${pair#*=}
+			printf -v "$key" '%s' "$value"
+		done
+		if [[ "$RFBAND/$SSIDNAME" == ${TARGET_SSIDS[$i]} ]]; then
+			# Now add parameter list to array
+			EXPECT_ARGS+=("VAP=${TARGET_SSIDS[$i]} VLANMODE=$VLANMODE CURR_PVID=$CURR_PVID TARGET_PVID=${TARGET_PVIDS[$i]}")
+			printerrmsg 1 "Target[$i] Current[$j]: VAP=${TARGET_SSIDS[$i]}, CURR_PVID=$CURR_PVID, TARGET_PVID=${TARGET_PVIDS[$i]}"
+		fi
+	done
+done
+
+printerrmsg 1 "Scripts $EXP_MODSSIDVLANS_SCRIPT_PATH started..."
+IFS=','; printerrmsg 2 "Arguments: ${EXPECT_ARGS[*]}\n" "nonl"
+
+expect $EXP_MODSSIDVLANS_SCRIPT_PATH "${EXPECT_ARGS[@]}"
 RETURN_VAL=$?
 if [ $RETURN_VAL -ne 0 ]
 then
-	printerrmsg 0 "Error: Expect script returned an error: $RETURN_VAL), exiting..."
-	exit $RTN_CONFIG_FAILED
+	printerrmsg 0 "Error: Expect $EXP_MODSSIDVLANS_SCRIPT_PATH script returned an error: $RETURN_VAL), exiting..."
+	exit $RTN_SSID_MOD_VLANS_FAILED
 else
-	printerrmsg 0 "Expect script successfully completed (return value: $RETURN_VAL)"
+	printerrmsg 1 "Expect script successfully completed (return value: $RETURN_VAL)"
 fi
-printerrmsg 1 "Waiting for device settings to complete..."
-sleep $RECONNECT_DELAY
-#
-# Check if device can be pinged on NEW IP address
-#
-/bin/ping -c 4 -W 1 $NEW_IP_ADDR >/dev/null
-if  [ $? -ne 0 ]
-then
-	printerrmsg 0 "Error: device on $NEW_IP_ADDR cannot be reached. Exiting..."
-	exit $RTN_PING_NEW_NORESP
-else
-	printerrmsg 1 "Device on $NEW_IP_ADDR reachable, continuing"
-fi
-#
-# From now on new IP address becomes the current one
-#
-CURR_IP_ADDR=$NEW_IP_ADDR
-#
-# Save the running configuration
-#
-EXPECT_ARGS=( "DBG_LEVEL=$DBG_LEVEL" "USER=$USER" "CURR_IP_ADDR=$CURR_IP_ADDR" "PASSWD=$PASSWD" )
-printerrmsg 1 "Script $EXP_SAVE_SCRIPT_PATH called.."
-IFS ', '; printerrmsg 2 "${EXPECT_ARGS[*]}"
-$EXP_SAVE_SCRIPT_PATH "${EXPECT_ARGS[@]}"
-RETURN_VAL=$?
-if [ $RETURN_VAL -ne 0 ]
-then
-	printerrmsg 0 "Error: Expect script returned an error: $RETURN_VAL), exiting..."
-	exit $RTN_SAVE_FAILED
-else
-	printerrmsg 0 "Expect script successfully completed (return value: $RETURN_VAL)"
-fi
-#
+
+printerrmsg 1 "SSID configuration script completed successfully"
 exit $RTN_SUCCESS

@@ -1,0 +1,175 @@
+#!/usr/bin/expect -f
+
+# The calling script may capture stdout for the results, in that case ssh command output is not visible, unless log_user 1 enables it.
+# Script should rely on printerrmsg, i.e. messages sent to stderr
+# Log file can be set to record ssh communication
+log_user 0
+#log_file ./createmod-ssidlist.log
+
+# Activate debug with value 1
+exp_internal 0
+
+set SCRIPTNAME "createmod-ssidlist.exp"
+set SCRIPT_VERSION "v0.2.01"
+
+set MIN_ARGS 4
+set MAX_ARGS 13
+set SSH_TIMEOUT 30
+
+set RTNEXP_SUCCESS 0
+set RTNEXP_ARGERROR 40
+set RTNEXP_SSHTIMEOUT 41
+set RTNEXP_SSID_OP_ERROR 46
+
+
+# Print diagnostic and error messages to stderr
+# $level : diagnostic level, message printed if <= DBG_LEVEL
+# $msg   : message to print
+# $mode  : optional, if "nonl" then no newline is printed
+
+proc printerrmsg {level msg {mode ""}} {
+    global DBG_LEVEL SCRIPTNAME SCRIPT_VERSION CURR_IP_ADDR
+
+    set DATE [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]
+
+    if {$level <= $DBG_LEVEL} {
+        set prefix "@$DATE: \[$SCRIPTNAME | $SCRIPT_VERSION | $CURR_IP_ADDR\] $msg"
+
+        if {$mode eq "nonl"} {
+            puts -nonewline stderr $prefix
+            flush stderr
+        } else {
+            puts stderr $prefix
+        }
+    }
+}
+
+set n_args [llength $argv]
+
+# process the fixed parameters first (one in each array element)
+for {set i 0} {$i<$MIN_ARGS} {incr i} {
+	set pair  [lindex $argv $i]
+    if {[regexp {^([^=]+)=(.*)$} $pair -> key value]} {
+        set $key $value
+    }
+}
+printerrmsg 1 "Fixed arguments: DBG_LEVEL='$DBG_LEVEL' USER='$USER' CURR_IP_ADDR='$CURR_IP_ADDR' PASSWD=<pwd of [string length $PASSWD] chars>\n" "nonl"
+
+# set logging if debug level is 2
+if {$DBG_LEVEL == 2} {
+	log_user 1
+}
+
+# Check the number of arguments
+if { $n_args < $MIN_ARGS || $n_args > $MAX_ARGS } {
+   printerrmsg 0 "Error: Incorrect number of arguments passed: $n_args (required: $MIN_ARGS - $MAX_ARGS"
+   exit $RTNEXP_ARGERROR
+}
+
+# Connect to the AWK-3252A via SSH
+# The following keywords are useful if using a test system that gets redeployed frequently (and thus, generating a new host key)
+# StrictHostKeyChecking to no the SSH connection will accept any key that's sent by the server
+# UserKnownHostsFile keyword specifies an alternate to $HOME/.ssh/known_hosts
+
+# Need to turn off the logging here, as the ssh connection prints stuff to stdout, which interferes with the return list
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$CURR_IP_ADDR
+
+set timeout $SSH_TIMEOUT
+
+# Check the connection
+expect_before {
+    timeout { printerrmsg 0 "Error: SSH connection timed out"
+	exit $RTNEXP_SSHTIMEOUT}
+}
+
+
+expect {
+   	-re ".*ssword: " { 
+		send "$PASSWD\r"
+	}
+}
+
+expect {
+    -re "Do you want to delete the failure record.*\]" {
+        send "y\r"
+        exp_continue
+    }
+    -re "awk.*# " {
+		send "configure\r"
+	}
+}
+
+# Start the main loop for creating SSIDs one by one
+printerrmsg 1 "Creating/modifying SSIDs on the target list.."
+for {set i 0} {$i<$n_args-$MIN_ARGS} {incr i} {
+	set CURRLINE [lindex $argv $i+$MIN_ARGS]
+	foreach pair $CURRLINE {
+		lassign [split $pair "="] name value
+		set $name $value
+	}
+	printerrmsg 1 "Index $i: [expr {$CREATE == 1 ? "creating" : "modifying"}] SSID $SSIDNAME/$RFBAND, PVID: $PVID"
+	
+	expect "*?(config)# " { send "wlan ap ssid \"$SSIDNAME\" $RFBAND\r"}
+	sleep 1
+	expect "*?(ssid-ap)# " { send "ssid $SSIDNAME\r"}
+	sleep 1
+	
+	# wpa-mode is not a parameter defined in the data description, so it has to be set based on encryption settings
+	switch -- $WPAENCRYPT {
+		"aes" {
+			set SECURITY "wpa2"
+		}
+		"tkip-aes-mixed" {
+			set SECURITY "wpa-wpa2-mixed"
+		}
+		default {
+		    printerrmsg 0 "Error: Wrong encryption mode, exiting.."
+			exit $RTNEXP_ARGERROR
+		}
+	}
+	expect "*?(ssid-ap)# " { send "wpa-mode personal\r"}
+	expect "*?(ssid-ap)# " { send "security $SECURITY\r"}
+	expect "*?(ssid-ap)# " { send "wpa-key\r"}
+	expect "*?Enter Passphrase:" { send "$WPAPASSPHRASE\r"}
+	expect "*?Retype Passphrase:" { send "$WPAPASSPHRASE\r"}
+	expect "*?(ssid-ap)# " { send "wpa-encrypt $WPAENCRYPT\r"}
+	sleep 1
+	expect "*?(ssid-ap)# " { send "exit\r"}
+	sleep 3
+	expect "*?(config)# " { send "exit\r"}
+	sleep 1
+	expect "*?# " { send "copy running-cfg startup-cfg\r"}
+	sleep 1
+	expect "*?# " { send "configure\r"}
+
+	printerrmsg 1 "SSID $SSIDNAME-$RFBAND [expr {$CREATE == 1 ? "created" : "modified"}] successfully"
+	sleep 1
+}
+printerrmsg 1 "All SSIDs created/modified successfully"
+
+sleep 3
+expect "*?(config)# " { send "wlan mode ap\r"}
+printerrmsg 1 "AP enabled."
+
+sleep 3
+expect "*?(config)# " { send "exit\r"}
+sleep 1
+expect "*?# " { send "copy running-cfg startup-cfg\r"}
+sleep 3
+printerrmsg 1 "Configuration saved."
+
+expect {
+	-re "awk.*# " {
+		send "show history\r"
+	}
+}
+
+expect {
+	-re "awk.*# " {
+		send "exit\r"
+	}
+}
+
+printerrmsg 0 "Script completed."
+exit $RTNEXP_SUCCESS
