@@ -10,7 +10,7 @@ log_user 0
 exp_internal 0
 
 set SCRIPTNAME "mod-ssidvlans.exp"
-set SCRIPT_VERSION "v0.1.00"
+set SCRIPT_VERSION "v0.1.01"
 
 set MIN_ARGS 4
 set MAX_ARGS 13
@@ -159,8 +159,8 @@ for {set i 0} {$i<$n_args-$MIN_ARGS} {incr i} {
 			exit $RTNEXP_SSIDVLANS_OP_ERROR
 		}
 	}
-	sleep 1
-	expect "*?# " { send "copy running-cfg startup-cfg\r"}
+	#sleep 1
+	#expect "*?# " { send "copy running-cfg startup-cfg\r"}
 	sleep 1
 	expect "*?# " { send "configure\r"}
 

@@ -24,21 +24,21 @@ xsi:schemaLocation="http://www.zeemanconsult.com /home/moxa/paramsets/execlist.x
          <active>true</active>
 	     <start-with-default-config>true</start-with-default-config>
          <credentials-file>southdeep-cred.age</credentials-file>
-         <config-dir>awk-3252a_gfsd_base</config-dir>
+         <config-dir>awk-3252a_gfsd_recd</config-dir>
          <initial-ip-address>192.168.127.253</initial-ip-address>
          <target-ip-address>192.168.127.200</target-ip-address>
          <ip-xml-filename>ipset_1.xml</ip-xml-filename>
-         <ssid-xml-filename>ssidset.xml</ssid-xml-filename>
+         <ssid-xml-filename>ssidset1.xml</ssid-xml-filename>
       </execrecord>
       <execrecord>
          <active>true</active>
 	     <start-with-default-config>false</start-with-default-config>
          <credentials-file>southdeep-cred.age</credentials-file>
-         <config-dir>awk-3252a_gfsd_base</config-dir>
+         <config-dir>awk-3252a_gfsd_recd</config-dir>
          <initial-ip-address>192.168.127.200</initial-ip-address>
-         <target-ip-address>192.168.127.202</target-ip-address>
+         <target-ip-address>192.168.127.253</target-ip-address>
          <ip-xml-filename>ipset_1.xml</ip-xml-filename>
-         <ssid-xml-filename>ssidset.xml</ssid-xml-filename>
+         <ssid-xml-filename>ssidset2.xml</ssid-xml-filename>
       </execrecord>
    </execlist>
 </execcontroldata>
